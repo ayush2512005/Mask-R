@@ -1,0 +1,10 @@
+packages:
+  - "packages/*"
+
+onlyBuiltDependencies:
+  - esbuild
+  - '@clerk/shared'
+
+allowBuilds:
+  '@clerk/shared': true
+  esbuild: true

@@ -1,0 +1,10 @@
+node_modules
+dist
+.turbo
+coverage
+playwright-report
+*.local
+.env
+.env.*
+!.env.example
+*.wasm
