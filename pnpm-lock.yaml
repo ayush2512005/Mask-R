@@ -91,7 +91,7 @@ importers:
         specifier: ^5.22.4
         version: 5.61.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@mediapipe/tasks-vision':
-        specifier: ^0.10.22
+        specifier: 0.10.35
         version: 0.10.35
       '@radix-ui/react-dialog':
         specifier: ^1.1.14
