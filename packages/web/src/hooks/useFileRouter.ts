@@ -13,7 +13,7 @@ export interface FileRouterResult {
 }
 
 export function useFileRouter() {
-  const { setFile, setError } = useFileStore();
+  const { setFile, setError, setProcessingStatus } = useFileStore();
   const { canProcessFile, incrementFileCount } = useSessionStore();
 
   const processFile = useCallback(
@@ -21,6 +21,8 @@ export function useFileRouter() {
       if (!canProcessFile()) {
         return null;
       }
+
+      setProcessingStatus('loading');
 
       try {
         const metadata = await buildFileMetadata(file);
@@ -37,7 +39,7 @@ export function useFileRouter() {
         return null;
       }
     },
-    [canProcessFile, incrementFileCount, setFile, setError]
+    [canProcessFile, incrementFileCount, setFile, setError, setProcessingStatus]
   );
 
   return { processFile };

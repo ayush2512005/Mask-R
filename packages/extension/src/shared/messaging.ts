@@ -1,4 +1,5 @@
-export const WEB_APP_BASE = 'https://app.redact.io';
+// NOTE: localhost for local testing. Switch back to 'https://app.redact.io' before shipping.
+export const WEB_APP_BASE = 'http://localhost:5173';
 
 export type ExtensionMessage =
   | { type: 'OPEN_EDITOR'; url: string; fileType: string }

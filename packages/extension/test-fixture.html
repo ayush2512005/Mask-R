@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redact Extension — Test Fixture</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; line-height: 1.6; color: #1e293b; }
+      h1 { font-size: 22px; }
+      h2 { font-size: 16px; margin-top: 28px; }
+      .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin: 12px 0; }
+      a { color: #3b82f6; }
+      code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+      img { border: 1px solid #e2e8f0; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>🔒 Redact Extension — Test Fixture</h1>
+    <p>Use this page to exercise every extension feature. Open DevTools (F12) to watch console logs.</p>
+
+    <h2>1. Right-click a file link → context menu</h2>
+    <div class="card">
+      Right-click each link; you should see <code>Redact with Redact</code>.
+      <ul>
+        <li><a href="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf">Sample PDF link (.pdf)</a></li>
+        <li><a href="https://file-examples.com/storage/fe_document.docx">Sample DOCX link (.docx)</a></li>
+        <li><a href="https://file-examples.com/storage/fe_sheet.xlsx">Sample XLSX link (.xlsx)</a></li>
+        <li><a href="https://upload.wikimedia.org/wikipedia/commons/3/3a/Cat03.jpg">Sample image link (.jpg)</a></li>
+      </ul>
+    </div>
+
+    <h2>2. Right-click an inline image → "Mask & Save with Redact"</h2>
+    <div class="card">
+      <img
+        src="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='200' height='120'&gt;&lt;rect width='200' height='120' fill='%234f46e5'/&gt;&lt;text x='100' y='65' font-size='18' fill='white' text-anchor='middle' font-family='sans-serif'&gt;test image&lt;/text&gt;&lt;/svg&gt;"
+        width="200" height="120" alt="test" />
+      <p>Right-click the image above → <code>Mask &amp; Save with Redact</code>.</p>
+    </div>
+
+    <h2>3. Download-interception prompt</h2>
+    <div class="card">
+      These links have <code>download</code> or <code>target="_blank"</code>, so clicking them should
+      pop the bottom-right <strong>“Sensitive file detected”</strong> card.
+      <ul>
+        <li><a href="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" download>Download PDF (download attr)</a></li>
+        <li><a href="https://upload.wikimedia.org/wikipedia/commons/3/3a/Cat03.jpg" target="_blank" rel="noreferrer">Open image in new tab (target=_blank)</a></li>
+      </ul>
+      <p>On that card: <strong>Redact Now</strong> opens the editor, <strong>Save Anyway</strong> proceeds,
+      <strong>Don't ask for this site</strong> suppresses this hostname (then check the popup).</p>
+    </div>
+
+    <h2>4. Popup</h2>
+    <div class="card">
+      Click the Redact toolbar icon → should show the panel + “Open Redact Tool”. After step 3’s
+      “Don’t ask”, the suppressed site appears here; click it to re-enable.
+    </div>
+  </body>
+</html>

@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { MaskingStyle } from '@redact/shared';
+import { MaskingStyle, VIDEO_SERVER_THRESHOLD_BYTES } from '@redact/shared';
+import type { VideoRedactionConfig } from '@redact/shared';
 import { useFileStore } from '@/stores/file.store';
 import { useRedactionStore } from '@/stores/redaction.store';
 import { Button } from '../ui/Button';
 import { Progress } from '../ui/Progress';
-import { Play, Pause, Download, Loader2, Trash2, Scan, Eye, EyeOff, Users } from 'lucide-react';
+import { Play, Pause, Download, Loader2, Trash2, Scan, Eye, EyeOff, Users, CloudUpload } from 'lucide-react';
 import type { TimedRegion } from '@/workers/video-processor.worker';
 import { useVideoFaceDetector } from '@/hooks/useVideoFaceDetector';
 import type { FaceTimedRegion, VideoFaceStyle, FacePartialMode } from '@/hooks/useVideoFaceDetector';
 import { useAudioRedactor } from '@/hooks/useAudioRedactor';
 import { AudioRedactionPanel } from './AudioRedactionPanel';
+import { useServerVideoProcessor } from '@/hooks/useServerVideoProcessor';
+import { ServerVideoDisclosure } from './ServerVideoDisclosure';
 
 // ─── Types & constants ────────────────────────────────────────────────────────
 
@@ -24,12 +27,13 @@ const FACE_STYLES: { value: VideoFaceStyle; label: string; title: string }[] = [
   { value: 'black_box', label: '■', title: 'Black box' },
   { value: 'emoji', label: '😊', title: 'Emoji overlay' },
   { value: 'sticker', label: '🎭', title: 'Sticker overlay' },
+  { value: 'face_swap', label: 'Swap', title: 'AI face swap — replace with a unique synthetic face' },
 ];
 
 const PARTIAL_MODES: { value: FacePartialMode; label: string; title: string }[] = [
-  { value: 'full', label: 'Full', title: 'Entire face' },
-  { value: 'eyes', label: 'Eyes', title: 'Eyes only (Story 5.6)' },
-  { value: 'mouth', label: 'Mouth', title: 'Mouth only (Story 5.6)' },
+  { value: 'full', label: 'Full', title: 'Mask entire face' },
+  { value: 'eyes', label: 'Eyes', title: 'Mask eyes only' },
+  { value: 'mouth', label: 'Mouth', title: 'Mask mouth only' },
 ];
 
 // ─── Pure helpers (module-level) ──────────────────────────────────────────────
@@ -89,6 +93,119 @@ function computePartialBbox(
   };
 }
 
+// ─── Story 5.9: Smart Face Swap ───────────────────────────────────────────────
+
+function hashFaceId(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
+  }
+  return h;
+}
+
+function mulberry32(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let z = s;
+    z = Math.imul(z ^ (z >>> 15), z | 1) | 0;
+    z ^= z + (Math.imul(z ^ (z >>> 7), z | 61) | 0);
+    return ((z ^ (z >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function drawSyntheticFace(
+  ctx: CanvasRenderingContext2D,
+  faceId: string,
+  bbox: { x: number; y: number; width: number; height: number },
+): void {
+  const rng = mulberry32(hashFaceId(faceId));
+  const x = Math.round(bbox.x);
+  const y = Math.round(bbox.y);
+  const w = Math.round(bbox.width);
+  const h = Math.round(bbox.height);
+  if (w < 4 || h < 4) return;
+
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const rx = w * 0.44;
+  const ry = h * 0.46;
+
+  // Skin tone — warm flesh range (15–45°)
+  const skinH = 15 + rng() * 30;
+  const skinS = 35 + rng() * 25;
+  const skinL = 52 + rng() * 22;
+
+  // Face oval
+  ctx.fillStyle = `hsl(${skinH},${skinS}%,${skinL}%)`;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair (upper half of face oval + extension)
+  const darkHair = rng() > 0.35;
+  const hairH = darkHair ? 20 + rng() * 20 : 35 + rng() * 20;
+  const hairL = darkHair ? 10 + rng() * 20 : 55 + rng() * 20;
+  ctx.fillStyle = `hsl(${hairH},25%,${hairL}%)`;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - ry * 0.28, rx * 1.02, ry * 0.68, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes
+  const eyeY = cy - h * 0.07;
+  const eyeXOff = w * 0.165;
+  const erx = w * 0.095;
+  const ery = h * 0.055;
+  const irisH = 180 + rng() * 90;
+
+  for (const ex of [cx - eyeXOff, cx + eyeXOff]) {
+    ctx.fillStyle = '#f8f8f8';
+    ctx.beginPath();
+    ctx.ellipse(ex, eyeY, erx, ery, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `hsl(${irisH},55%,32%)`;
+    ctx.beginPath();
+    ctx.ellipse(ex, eyeY, erx * 0.62, ery * 0.78, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0a0a0a';
+    ctx.beginPath();
+    ctx.ellipse(ex, eyeY, erx * 0.27, ery * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.arc(ex + erx * 0.15, eyeY - ery * 0.2, erx * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Nose tip
+  ctx.fillStyle = `hsl(${skinH - 3},${skinS * 0.7}%,${skinL * 0.78}%)`;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + h * 0.1, w * 0.06, h * 0.04, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mouth
+  const mouthY = cy + h * 0.26;
+  const mw = w * 0.22;
+  const smileD = h * 0.045;
+  ctx.strokeStyle = `hsl(${skinH - 10},${skinS}%,${skinL * 0.62}%)`;
+  ctx.lineWidth = Math.max(1.5, h * 0.022);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - mw, mouthY);
+  ctx.quadraticCurveTo(cx, mouthY + smileD, cx + mw, mouthY);
+  ctx.stroke();
+
+  // Subtle face outline
+  ctx.strokeStyle = `hsl(${skinH},${skinS}%,${skinL * 0.65}%)`;
+  ctx.lineWidth = Math.max(0.5, Math.min(1.5, w * 0.008));
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function applyManualStyle(
   ctx: CanvasRenderingContext2D,
   v: HTMLVideoElement,
@@ -133,6 +250,7 @@ function applyFaceStyle(
   v: HTMLVideoElement,
   style: VideoFaceStyle,
   bbox: { x: number; y: number; width: number; height: number },
+  faceId = '',
 ): void {
   const x = Math.round(bbox.x);
   const y = Math.round(bbox.y);
@@ -181,6 +299,9 @@ function applyFaceStyle(
       ctx.fillText('🎭', x + w / 2, y + h / 2);
       break;
     }
+    case 'face_swap':
+      drawSyntheticFace(ctx, faceId, bbox);
+      break;
   }
 }
 
@@ -210,6 +331,10 @@ export function VideoEditor() {
   const [bgCrowdBlurMode, setBgCrowdBlurMode] = useState(false);
   const [foregroundFaceId, setForegroundFaceId] = useState<string | null>(null);
 
+  // Story 5.1: server-side path for videos >100 MB
+  const [showDisclosure, setShowDisclosure] = useState(false);
+  const serverProc = useServerVideoProcessor();
+
   // Scroll the confirm dialog into view whenever a new pending region is drawn
   useEffect(() => {
     if (!pendingRegion) return;
@@ -219,8 +344,8 @@ export function VideoEditor() {
   const { fileBuffer, fileMetadata } = useFileStore();
   const { maskingStyle, setRedactedBuffer } = useRedactionStore();
 
-  // Stories 5.3 + 5.4 + 5.5
-  const { detecting, detectProgress, faceRegions, setFaceRegions, detectFaces, hasFaceDetector } =
+  // Stories 5.3 + 5.4 + 5.5 + 5.9
+  const { detecting, detectProgress, faceRegions, setFaceRegions, detectFaces, hasFaceDetector, faceDetectError } =
     useVideoFaceDetector(videoRef, duration);
 
   // Story 5.8: audio redaction
@@ -299,7 +424,7 @@ export function VideoEditor() {
       if (!rawBbox) continue;
       // Story 5.6: compute partial sub-region bbox
       const bbox = computePartialBbox(rawBbox, fr.partialMode);
-      applyFaceStyle(ctx, v, fr.style, bbox);
+      applyFaceStyle(ctx, v, fr.style, bbox, fr.faceId);
     }
 
     ctx.filter = 'none';
@@ -395,6 +520,40 @@ export function VideoEditor() {
     setTimedRegions((prev) => prev.filter((r) => r.id !== id));
   }
 
+  const VIDEO_TYPES = ['MP4', 'MOV', 'WEBM', 'AVI'];
+  const isServerSide =
+    fileMetadata != null &&
+    VIDEO_TYPES.includes(fileMetadata.type) &&
+    fileMetadata.sizeBytes > VIDEO_SERVER_THRESHOLD_BYTES;
+
+  function buildRedactionConfig(): VideoRedactionConfig {
+    const v = videoRef.current;
+    return {
+      videoDimensions: { width: v?.videoWidth ?? 1920, height: v?.videoHeight ?? 1080 },
+      maskingStyle,
+      timedRegions: timedRegions.map((r) => ({
+        startTime: r.startTime,
+        endTime: r.endTime,
+        bbox: r.boundingBox,
+      })),
+      faceRegions: faceRegions
+        .filter((f) => f.selected)
+        .map((f) => ({
+          faceId: f.faceId,
+          startTime: f.startTime,
+          endTime: f.endTime,
+          style: f.style,
+          partialMode: f.partialMode,
+          trajectory: f.trajectory,
+        })),
+      audioRanges: audioRedactor.ranges.map((r) => ({
+        startTime: r.startTime,
+        endTime: r.endTime,
+        mode: r.mode,
+      })),
+    };
+  }
+
   const hasRegionsToExport =
     timedRegions.length > 0 ||
     faceRegions.some((f) => f.selected) ||
@@ -439,8 +598,13 @@ export function VideoEditor() {
     };
 
     recorder.start(100);
-    v.currentTime = 0;
-    await new Promise<void>((resolve) => { v.onseeked = () => resolve(); });
+    // Register onseeked BEFORE setting currentTime to avoid missing the event
+    // when the video is already near 0 and the seek completes synchronously.
+    await new Promise<void>((resolve) => {
+      v.onseeked = () => resolve();
+      v.currentTime = 0;
+    });
+    v.onseeked = null;
     void v.play();
 
     const tick = () => {
@@ -607,8 +771,10 @@ export function VideoEditor() {
           </div>
         </div>
 
-        {!hasFaceDetector && (
-          <p className="text-xs text-muted-foreground">Face detection requires Chrome with Shape Detection API.</p>
+        {faceDetectError && (
+          <p className="text-xs text-destructive rounded border border-destructive/30 bg-destructive/10 px-2 py-1.5">
+            {faceDetectError}
+          </p>
         )}
         {detecting && <Progress value={detectProgress} className="h-1.5" />}
 
@@ -704,26 +870,119 @@ export function VideoEditor() {
         duration={duration}
       />
 
-      {/* Export progress */}
-      {exporting && (
-        <div className="space-y-1.5">
-          <Progress value={exportProgress} />
-          <p className="text-xs text-muted-foreground">Exporting redacted video… {exportProgress}%</p>
-        </div>
+      {/* ── Client-side export (files ≤100 MB) ──────────────────────────── */}
+      {!isServerSide && (
+        <>
+          {exporting && (
+            <div className="space-y-1.5">
+              <Progress value={exportProgress} />
+              <p className="text-xs text-muted-foreground">Exporting redacted video… {exportProgress}%</p>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button
+              onClick={() => void handleExport()}
+              disabled={!hasRegionsToExport || exporting || detecting}
+              className="gap-1.5"
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {exporting
+                ? 'Exporting…'
+                : `Export Redacted Video (${totalRegionCount} region${totalRegionCount !== 1 ? 's' : ''})`}
+            </Button>
+          </div>
+        </>
       )}
 
-      <div className="flex gap-2">
-        <Button
-          onClick={() => void handleExport()}
-          disabled={!hasRegionsToExport || exporting || detecting}
-          className="gap-1.5"
-        >
-          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          {exporting
-            ? 'Exporting…'
-            : `Export Redacted Video (${totalRegionCount} region${totalRegionCount !== 1 ? 's' : ''})`}
-        </Button>
-      </div>
+      {/* ── Server-side export (files >100 MB via ECS Fargate) ───────────── */}
+      {isServerSide && (
+        <div className="space-y-3">
+          {/* Disclosure prompt */}
+          {showDisclosure && serverProc.phase === 'idle' && (
+            <ServerVideoDisclosure
+              fileSizeMb={(fileMetadata?.sizeBytes ?? 0) / (1024 * 1024)}
+              onAccept={() => {
+                setShowDisclosure(false);
+                const file = useFileStore.getState().currentFile;
+                if (file) void serverProc.proceed(file, buildRedactionConfig());
+              }}
+              onCancel={() => setShowDisclosure(false)}
+            />
+          )}
+
+          {/* Upload progress */}
+          {serverProc.phase === 'uploading' && (
+            <div className="space-y-1.5">
+              <Progress value={serverProc.uploadProgress} />
+              <p className="text-xs text-muted-foreground">
+                Uploading to secure server… {serverProc.uploadProgress}%
+              </p>
+            </div>
+          )}
+
+          {/* Processing progress */}
+          {serverProc.phase === 'processing' && (
+            <div className="space-y-1.5">
+              <Progress value={serverProc.jobProgress} />
+              <p className="text-xs text-muted-foreground">
+                Processing on server… {serverProc.jobProgress}%
+              </p>
+            </div>
+          )}
+
+          {/* Error */}
+          {serverProc.phase === 'failed' && serverProc.error && (
+            <p className="text-sm text-destructive rounded border border-destructive/30 bg-destructive/10 px-3 py-2">
+              {serverProc.error}
+            </p>
+          )}
+
+          <div className="flex gap-2 flex-wrap">
+            {/* Trigger button — shows when idle or failed */}
+            {(serverProc.phase === 'idle' || serverProc.phase === 'failed') && (
+              <Button
+                onClick={() => setShowDisclosure(true)}
+                disabled={!hasRegionsToExport || detecting}
+                className="gap-1.5"
+              >
+                <CloudUpload className="h-4 w-4" />
+                {`Export on Server (${totalRegionCount} region${totalRegionCount !== 1 ? 's' : ''})`}
+              </Button>
+            )}
+
+            {/* Spinner while uploading/processing */}
+            {(serverProc.phase === 'uploading' || serverProc.phase === 'processing') && (
+              <Button disabled className="gap-1.5">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {serverProc.phase === 'uploading' ? 'Uploading…' : 'Processing on server…'}
+              </Button>
+            )}
+
+            {/* Download button once ready */}
+            {serverProc.phase === 'ready' && (
+              <>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const buffer = await serverProc.downloadAndCleanup();
+                      setRedactedBuffer(buffer);
+                    } catch (err) {
+                      console.error('[ServerVideo] Download error:', err);
+                    }
+                  }}
+                  className="gap-1.5"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Redacted Video
+                </Button>
+                <Button variant="outline" size="sm" onClick={serverProc.reset}>
+                  Start over
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

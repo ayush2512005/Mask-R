@@ -30,7 +30,7 @@ const post = (msg: OutMessage) => self.postMessage(msg);
 
 async function extractTextFromImage(buffer: ArrayBuffer): Promise<ImageProcessResult> {
   const Tesseract = await import('tesseract.js');
-  const result = await Tesseract.recognize(buffer, 'eng', {
+  const result = await Tesseract.recognize(new Blob([buffer]), 'eng', {
     logger: (m) => {
       if (m.status === 'recognizing text') {
         post({ type: 'PROGRESS', payload: { pct: Math.round(m.progress * 100), stage: 'Extracting text...' } });

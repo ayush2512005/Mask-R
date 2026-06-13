@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Upload, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFileRouter } from '@/hooks/useFileRouter';
 import { useSessionStore } from '@/stores/session.store';
+import { useFileStore } from '@/stores/file.store';
 import { SUPPORTED_EXTENSIONS } from '@/lib/constants';
 
 const ACCEPTED = Object.keys(SUPPORTED_EXTENSIONS).join(',');
@@ -12,7 +13,20 @@ export function DropZone() {
   const [dragging, setDragging] = useState(false);
   const { processFile } = useFileRouter();
   const { canProcessFile } = useSessionStore();
+  const { processingStatus } = useFileStore();
   const navigate = useNavigate();
+
+  // Prevent the browser from opening dropped files as a new page navigation.
+  // Without this, dropping a file anywhere outside the zone causes a full "reload".
+  useEffect(() => {
+    const prevent = (e: DragEvent) => { e.preventDefault(); };
+    document.addEventListener('dragover', prevent);
+    document.addEventListener('drop', prevent);
+    return () => {
+      document.removeEventListener('dragover', prevent);
+      document.removeEventListener('drop', prevent);
+    };
+  }, []);
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -43,7 +57,7 @@ export function DropZone() {
     [handleFile]
   );
 
-  const disabled = !canProcessFile();
+  const disabled = !canProcessFile() || processingStatus === 'loading';
 
   return (
     <label
