@@ -605,6 +605,8 @@ export function VideoEditor() {
       v.currentTime = 0;
     });
     v.onseeked = null;
+    // Schedule gain automations NOW, aligned to video position 0 (after seek completes)
+    audioRedactor.scheduleExportGains();
     void v.play();
 
     const tick = () => {

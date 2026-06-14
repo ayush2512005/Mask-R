@@ -28,7 +28,9 @@ export const useFileStore = create<FileState>((set) => ({
       fileBuffer: buffer,
       fileMetadata: metadata,
       fileType: metadata.type,
-      processingStatus: 'idle',
+      // processingStatus intentionally not reset here — it stays 'loading' so the
+      // Home page spinner persists until the Editor has actually mounted. The Editor
+      // resets it to 'idle' via its own useEffect.
       errorMessage: null,
     }),
 

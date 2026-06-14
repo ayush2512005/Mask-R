@@ -128,7 +128,14 @@ const GENERATORS: Record<PiiType, FakeFn> = {
   [PiiType.ADDRESS]: fakeAddress,
   [PiiType.DATE_OF_BIRTH]: fakeDOB,
   [PiiType.PASSPORT]: fakePassport,
-  [PiiType.CUSTOM]: fakeName, // generic fallback
+  // India-specific — use structured fake values
+  [PiiType.AADHAAR]: (_o, i) => `${2000 + (i % 8000)} ${1000 + (i % 9000)} ${1000 + (i * 17 % 9000)}`,
+  [PiiType.PAN]: (_o, i) => `XXXXX${String(1000 + i * 7).slice(0, 4)}X`,
+  [PiiType.VEHICLE_NUMBER]: (_o, i) => `XX${String(10 + i % 90).slice(0, 2)}XX${String(1000 + i % 9000)}`,
+  [PiiType.IFSC]: (_o, i) => `XXXX0${String(100000 + i * 3).slice(0, 6)}`,
+  [PiiType.UPI_ID]: (_o, i) => `user${i}@upi`,
+  [PiiType.GST]: (_o, i) => `${String(10 + i % 28).slice(0, 2)}XXXXX${String(1000 + i % 9000)}X${i % 9}Z${i % 10}`,
+  [PiiType.CUSTOM]: fakeName,
 };
 
 /**

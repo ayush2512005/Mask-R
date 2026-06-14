@@ -4,9 +4,10 @@ import { AppShell } from '@/components/layout/AppShell';
 
 const Home = lazy(() => import('@/pages/Home').then((m) => ({ default: m.Home })));
 const Editor = lazy(() => import('@/pages/Editor').then((m) => ({ default: m.Editor })));
-const Pricing = lazy(() => import('@/pages/Pricing').then((m) => ({ default: m.Pricing })));
-const Dashboard = lazy(() => import('@/pages/Dashboard').then((m) => ({ default: m.Dashboard })));
-const Batch = lazy(() => import('@/pages/Batch').then((m) => ({ default: m.Batch })));
+const ScreenGuard = lazy(() => import('@/pages/ScreenGuard').then((m) => ({ default: m.ScreenGuard })));
+const DocsRedactPage = lazy(() => import('@/pages/DocsRedactPage').then((m) => ({ default: m.DocsRedactPage })));
+const ImageRedactPage = lazy(() => import('@/pages/ImageRedactPage').then((m) => ({ default: m.ImageRedactPage })));
+const VideoRedactPage = lazy(() => import('@/pages/VideoRedactPage').then((m) => ({ default: m.VideoRedactPage })));
 
 const PageFallback = () => (
   <div className="flex items-center justify-center h-64">
@@ -14,57 +15,23 @@ const PageFallback = () => (
   </div>
 );
 
+function page(element: React.ReactNode) {
+  return (
+    <AppShell>
+      <Suspense fallback={<PageFallback />}>
+        {element}
+      </Suspense>
+    </AppShell>
+  );
+}
+
 const router = createBrowserRouter([
-  {
-    path: '/',
-    element: (
-      <AppShell>
-        <Suspense fallback={<PageFallback />}>
-          <Home />
-        </Suspense>
-      </AppShell>
-    ),
-  },
-  {
-    path: '/editor',
-    element: (
-      <AppShell>
-        <Suspense fallback={<PageFallback />}>
-          <Editor />
-        </Suspense>
-      </AppShell>
-    ),
-  },
-  {
-    path: '/pricing',
-    element: (
-      <AppShell>
-        <Suspense fallback={<PageFallback />}>
-          <Pricing />
-        </Suspense>
-      </AppShell>
-    ),
-  },
-  {
-    path: '/dashboard',
-    element: (
-      <AppShell>
-        <Suspense fallback={<PageFallback />}>
-          <Dashboard />
-        </Suspense>
-      </AppShell>
-    ),
-  },
-  {
-    path: '/batch',
-    element: (
-      <AppShell>
-        <Suspense fallback={<PageFallback />}>
-          <Batch />
-        </Suspense>
-      </AppShell>
-    ),
-  },
+  { path: '/',             element: page(<Home />) },
+  { path: '/editor',       element: page(<Editor />) },
+  { path: '/docs',         element: page(<DocsRedactPage />) },
+  { path: '/image',        element: page(<ImageRedactPage />) },
+  { path: '/video',        element: page(<VideoRedactPage />) },
+  { path: '/screen-guard', element: page(<ScreenGuard />) },
 ]);
 
 export function Router() {

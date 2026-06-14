@@ -3,7 +3,7 @@
   "name": "Redact — Privacy Redaction Tool",
   "version": "0.1.0",
   "description": "Redact PII from files with one right-click. Powered by Redact.",
-  "permissions": ["contextMenus", "tabs", "activeTab", "downloads"],
+  "permissions": ["contextMenus", "tabs", "activeTab", "downloads", "storage"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background/service-worker.ts",
@@ -24,6 +24,11 @@
       "matches": ["<all_urls>"],
       "js": ["src/content/download-interceptor.ts"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/live-overlay.ts"],
+      "run_at": "document_idle"
     }
   ],
   "action": {

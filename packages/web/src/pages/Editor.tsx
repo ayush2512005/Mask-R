@@ -7,13 +7,14 @@ import { useFileRouter } from '@/hooks/useFileRouter';
 export function Editor() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { fileMetadata } = useFileStore();
+  const { fileMetadata, setProcessingStatus } = useFileStore();
   const { processFile } = useFileRouter();
 
   const source = params.get('source');
   const fileUrl = params.get('url');
   const fileType = params.get('type');
 
+  // Load file when arriving from the extension via URL params
   useEffect(() => {
     if (source === 'extension' && fileUrl) {
       fetch(fileUrl)
@@ -27,12 +28,21 @@ export function Editor() {
     }
   }, [source, fileUrl, fileType, processFile, navigate]);
 
+  // Clear the loading spinner on the Home page once the editor is showing.
+  // setFile() leaves processingStatus as 'loading' to prevent a flash on Home;
+  // we reset it here after the editor has confirmed it has the file.
+  useEffect(() => {
+    if (fileMetadata) {
+      setProcessingStatus('idle');
+    }
+  }, [fileMetadata, setProcessingStatus]);
+
   if (!fileMetadata && !fileUrl) {
     return <Navigate to="/" replace />;
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="mx-auto max-w-screen-xl px-6 py-6">
       <RedactionEditor />
     </div>
   );

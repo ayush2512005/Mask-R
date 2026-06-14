@@ -3,14 +3,11 @@ import { useRedactionStore } from '@/stores/redaction.store';
 import { DetectionItem } from './DetectionItem';
 import { ConfidenceFilter, type ConfidenceLevel } from './ConfidenceFilter';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { Plus } from 'lucide-react';
 
 export function PiiReviewPanel() {
-  const { detectedItems, approveItem, rejectItem, approveAll, approveHighConfidence, addCustomTerm } =
+  const { detectedItems, approveItem, rejectItem, approveAll, approveHighConfidence } =
     useRedactionStore();
   const [filter, setFilter] = useState<ConfidenceLevel>('all');
-  const [customTerm, setCustomTerm] = useState('');
 
   const counts = useMemo(
     () => ({
@@ -28,23 +25,20 @@ export function PiiReviewPanel() {
     return detectedItems.filter((i) => i.confidence < 70);
   }, [detectedItems, filter]);
 
-  function handleAddCustomTerm() {
-    const term = customTerm.trim();
-    if (term) {
-      addCustomTerm(term);
-      setCustomTerm('');
-    }
-  }
-
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">Detected PII ({detectedItems.length})</p>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={approveHighConfidence}>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Detected PII</p>
+          {detectedItems.length > 0 && (
+            <p className="text-xs text-muted-foreground">{detectedItems.length} items found</p>
+          )}
+        </div>
+        <div className="flex gap-1.5">
+          <Button size="sm" variant="outline" onClick={approveHighConfidence} className="text-xs">
             Approve High
           </Button>
-          <Button size="sm" variant="outline" onClick={approveAll}>
+          <Button size="sm" variant="outline" onClick={approveAll} className="text-xs">
             Approve All
           </Button>
         </div>
@@ -52,23 +46,10 @@ export function PiiReviewPanel() {
 
       <ConfidenceFilter value={filter} onChange={setFilter} counts={counts} />
 
-      <div className="flex gap-2">
-        <Input
-          placeholder="Add custom term or regex..."
-          value={customTerm}
-          onChange={(e) => setCustomTerm(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAddCustomTerm()}
-          className="h-8 text-sm"
-        />
-        <Button size="sm" variant="outline" onClick={handleAddCustomTerm} aria-label="Add term">
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+      <div className="max-h-64 overflow-y-auto space-y-1 pr-0.5">
         {filtered.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-4">
-            {detectedItems.length === 0 ? 'No PII detected yet' : 'No items in this confidence range'}
+          <p className="text-center text-sm text-muted-foreground py-6">
+            {detectedItems.length === 0 ? 'No PII detected yet' : 'No items in this range'}
           </p>
         ) : (
           filtered.map((item) => (

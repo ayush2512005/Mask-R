@@ -1,5 +1,6 @@
 import nlp from 'compromise';
 import { PiiType } from '@redact/shared';
+// PiiType now includes AADHAAR, PAN, VEHICLE_NUMBER, IFSC, UPI_ID, GST
 import type { PiiItem } from '@redact/shared';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -7,9 +8,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
 
-// Matches US-style phones: (555) 123-4567, +1 800 555-1234, 555.123.4567
+// US-style: (555) 123-4567, +1 800 555-1234 · Indian mobile: +91 98XXXXXXXX, 07XXXXXXXXX
 const PHONE_RE =
-  /(?:\+?1[-.\s]?)?\(?(?:\d{3})\)?[-.\s]?\d{3}[-.\s]\d{4}/g;
+  /\b(?:(?:\+?91|0)[-.\s]?[6-9]\d{9}|[6-9]\d{9}|(?:\+?1[-.\s]?)?\(?(?:\d{3})\)?[-.\s]?\d{3}[-.\s]\d{4})\b/g;
 
 const SSN_RE = /\b\d{3}-\d{2}-\d{4}\b/g;
 
@@ -32,8 +33,31 @@ const DOB_PATTERNS: RegExp[] = [
   /\bDate\s+of\s+Birth\s*[:\-]?\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/gi,
 ];
 
-// Passport numbers: 1–2 uppercase letters + 6–9 digits (US, UK, EU formats)
+// Passport numbers: 1–2 uppercase letters + 6–9 digits (US, UK, EU, Indian formats)
 const PASSPORT_RE = /\b[A-Z]{1,2}\d{7,9}\b/g;
+
+// ── India-specific patterns ──────────────────────────────────────────────────
+
+// Aadhaar: 12 digits in groups of 4 (space/hyphen separated or solid)
+// First digit must be 2–9 (valid Aadhaar range)
+const AADHAAR_RE = /\b[2-9]\d{3}[\s\-]?\d{4}[\s\-]?\d{4}\b/g;
+
+// PAN card: 5 uppercase letters + 4 digits + 1 uppercase letter (ABCDE1234F)
+const PAN_RE = /\b[A-Z]{5}\d{4}[A-Z]\b/g;
+
+// Indian vehicle registration: STATE-CODE (2 letters) + DISTRICT (2 digits) +
+// SERIES (1–3 letters) + NUMBER (4 digits), various separator combos
+const VEHICLE_NUMBER_RE = /\b[A-Z]{2}[\s\-]?\d{2}[\s\-]?[A-Z]{1,3}[\s\-]?\d{4}\b/g;
+
+// IFSC code: 4 uppercase letters + '0' + 6 alphanumeric chars (e.g., HDFC0001234)
+const IFSC_RE = /\b[A-Z]{4}0[A-Z0-9]{6}\b/g;
+
+// UPI payment ID: localpart@provider (restricted to known UPI handles)
+const UPI_RE =
+  /\b[a-zA-Z0-9._-]{2,}@(?:paytm|upi|ybl|okhdfcbank|okaxis|oksbi|okicici|apl|axisbank|axl|barodampay|cnrb|csbpay|fbl|federal|hdfcbank|ibl|icici|idfcbank|indus|kotak|mahb|pnb|rbl|sib|slice|syndicate|ubi|ucb|union)\b/gi;
+
+// GST number: 2-digit state code + 10-char PAN + entity code + Z + check digit
+const GST_RE = /\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z0-9]\b/g;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -134,6 +158,13 @@ export function runDetection(
     }
   }
   if (enabled.has(PiiType.PASSPORT)) items.push(...detectByRegex(text, PASSPORT_RE, PiiType.PASSPORT, 65));
+  // India-specific
+  if (enabled.has(PiiType.AADHAAR)) items.push(...detectByRegex(text, AADHAAR_RE, PiiType.AADHAAR, 92));
+  if (enabled.has(PiiType.PAN)) items.push(...detectByRegex(text, PAN_RE, PiiType.PAN, 95));
+  if (enabled.has(PiiType.VEHICLE_NUMBER)) items.push(...detectByRegex(text, VEHICLE_NUMBER_RE, PiiType.VEHICLE_NUMBER, 80));
+  if (enabled.has(PiiType.IFSC)) items.push(...detectByRegex(text, IFSC_RE, PiiType.IFSC, 88));
+  if (enabled.has(PiiType.UPI_ID)) items.push(...detectByRegex(text, UPI_RE, PiiType.UPI_ID, 90));
+  if (enabled.has(PiiType.GST)) items.push(...detectByRegex(text, GST_RE, PiiType.GST, 93));
   if (customTerms.length > 0) items.push(...detectCustomTerms(text, customTerms));
 
   return dedup(items);

@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { FileProcessingPath } from '@redact/shared';
 import { useFileStore } from '../stores/file.store';
 import { useSessionStore } from '../stores/session.store';
+import { useRedactionStore } from '../stores/redaction.store';
 import {
   buildFileMetadata,
   readFileBuffer,
@@ -15,6 +16,7 @@ export interface FileRouterResult {
 export function useFileRouter() {
   const { setFile, setError, setProcessingStatus } = useFileStore();
   const { canProcessFile, incrementFileCount } = useSessionStore();
+  const { clearRedaction } = useRedactionStore();
 
   const processFile = useCallback(
     async (file: File): Promise<FileRouterResult | null> => {
@@ -29,6 +31,9 @@ export function useFileRouter() {
         const path = routeFile(file);
         const buffer = await readFileBuffer(file);
 
+        // Wipe previous redaction state so stale regions/PII from the old file
+        // don't bleed into the new editor session.
+        clearRedaction();
         setFile(file, metadata, buffer);
         incrementFileCount();
 
@@ -39,7 +44,7 @@ export function useFileRouter() {
         return null;
       }
     },
-    [canProcessFile, incrementFileCount, setFile, setError, setProcessingStatus]
+    [canProcessFile, incrementFileCount, setFile, setError, setProcessingStatus, clearRedaction]
   );
 
   return { processFile };

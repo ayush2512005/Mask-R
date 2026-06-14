@@ -8,30 +8,39 @@ interface ConfidenceFilterProps {
   counts: { high: number; medium: number; low: number };
 }
 
-const LEVELS: { key: ConfidenceLevel; label: string; color: string }[] = [
-  { key: 'all', label: 'All', color: 'bg-secondary text-secondary-foreground' },
-  { key: 'high', label: 'High (>90%)', color: 'bg-green-100 text-green-800' },
-  { key: 'medium', label: 'Medium (70–90%)', color: 'bg-yellow-100 text-yellow-800' },
-  { key: 'low', label: 'Low (<70%)', color: 'bg-red-100 text-red-800' },
+const LEVELS: { key: ConfidenceLevel; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'high', label: 'High' },
+  { key: 'medium', label: 'Med' },
+  { key: 'low', label: 'Low' },
 ];
 
 export function ConfidenceFilter({ value, onChange, counts }: ConfidenceFilterProps) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {LEVELS.map(({ key, label, color }) => {
+    <div className="flex gap-1">
+      {LEVELS.map(({ key, label }) => {
         const count = key === 'all' ? counts.high + counts.medium + counts.low : counts[key];
+        const active = value === key;
         return (
           <button
             key={key}
             onClick={() => onChange(key)}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all',
-              color,
-              value === key ? 'ring-2 ring-primary ring-offset-1' : 'opacity-70 hover:opacity-100'
+              'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+              active
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >
             {label}
-            <span className="rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-bold">{count}</span>
+            <span
+              className={cn(
+                'rounded px-1 py-px text-[10px] font-semibold tabular-nums',
+                active ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
+              )}
+            >
+              {count}
+            </span>
           </button>
         );
       })}

@@ -1,7 +1,7 @@
 import { useRedactionStore } from '@/stores/redaction.store';
 import { useFileStore } from '@/stores/file.store';
 import { Button } from '../ui/Button';
-import { Download } from 'lucide-react';
+import { Download, CheckCircle2 } from 'lucide-react';
 import { downloadBuffer, getRedactedFileName } from '@/lib/utils';
 import { SupportedFileType } from '@redact/shared';
 
@@ -30,16 +30,20 @@ export function DownloadPanel() {
   const fileName = getRedactedFileName(fileMetadata.name);
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium">Ready to download</p>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-success">
+        <CheckCircle2 className="h-4 w-4 shrink-0" />
+        <p className="text-sm font-semibold">Ready to download</p>
+      </div>
       <p className="text-xs text-muted-foreground">
-        {(redactedBuffer.byteLength / 1024 / 1024).toFixed(2)} MB — redacted file
+        {(redactedBuffer.byteLength / 1024 / 1024).toFixed(2)} MB · redacted file
       </p>
       <Button
+        variant="success"
         className="w-full"
         onClick={() => downloadBuffer(redactedBuffer, fileName, mimeType)}
       >
-        <Download className="h-4 w-4 mr-2" />
+        <Download className="h-4 w-4" />
         Download {fileName}
       </Button>
     </div>

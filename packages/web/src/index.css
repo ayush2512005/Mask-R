@@ -1,35 +1,205 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(222.2 84% 4.9%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(222.2 84% 4.9%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(222.2 84% 4.9%);
-  --color-primary: hsl(221.2 83.2% 53.3%);
-  --color-primary-foreground: hsl(210 40% 98%);
-  --color-secondary: hsl(210 40% 96.1%);
-  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
-  --color-muted: hsl(210 40% 96.1%);
-  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
-  --color-accent: hsl(210 40% 96.1%);
-  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
-  --color-destructive: hsl(0 84.2% 60.2%);
-  --color-destructive-foreground: hsl(210 40% 98%);
-  --color-border: hsl(214.3 31.8% 91.4%);
-  --color-input: hsl(214.3 31.8% 91.4%);
-  --color-ring: hsl(221.2 83.2% 53.3%);
+  /* Fonts */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Brand */
+  --color-primary: #5B5EF4;
+  --color-primary-foreground: #FFFFFF;
+
+  /* Success / approval */
+  --color-success: #10B981;
+  --color-success-foreground: #FFFFFF;
+
+  /* Warning */
+  --color-warning: #F59E0B;
+  --color-warning-foreground: #7C2D12;
+
+  /* Surfaces */
+  --color-background: #F5F4FF;
+  --color-foreground: #09090B;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #09090B;
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: #09090B;
+
+  /* Secondary / muted */
+  --color-secondary: #EFEEFC;
+  --color-secondary-foreground: #09090B;
+  --color-muted: #EFEEFC;
+  --color-muted-foreground: #6B6A7A;
+
+  /* Accent */
+  --color-accent: #EFEEFC;
+  --color-accent-foreground: #09090B;
+
+  /* Service accent colors */
+  --color-rose: #F43F5E;
+  --color-rose-foreground: #FFFFFF;
+  --color-orange: #F97316;
+  --color-orange-foreground: #FFFFFF;
+  --color-cyan: #06B6D4;
+  --color-cyan-foreground: #FFFFFF;
+  --color-violet: #7C3AED;
+  --color-violet-foreground: #FFFFFF;
+
+  /* Semantic */
+  --color-destructive: #EF4444;
+  --color-destructive-foreground: #FFFFFF;
+
+  /* Borders / inputs */
+  --color-border: #E2E1F0;
+  --color-input: #E2E1F0;
+  --color-ring: #5B5EF4;
+
+  /* Radius */
   --radius: 0.5rem;
 }
 
+/* ── Keyframes ─────────────────────────────────────────────────────────────── */
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+@keyframes float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(40px, -50px) scale(1.08); }
+}
+
+@keyframes float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(-30px, 35px) scale(0.94); }
+}
+
+@keyframes float-3 {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(-28px); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+
 @layer base {
-  * {
-    border-color: var(--color-border);
-  }
+  * { border-color: var(--color-border); }
+
   body {
-    background-color: var(--color-background);
+    background: linear-gradient(145deg, #EDE9FF 0%, #FFF0F8 48%, #E8F0FF 100%);
+    background-attachment: fixed;
+    min-height: 100dvh;
     color: var(--color-foreground);
+    font-family: var(--font-sans);
     font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────────────── */
+
+@layer utilities {
+  /* Animated gradient heading text */
+  .gradient-text {
+    background: linear-gradient(270deg, #5B5EF4, #EC4899, #7C3AED, #06B6D4, #5B5EF4);
+    background-size: 300% 300%;
+    animation: gradient-shift 5s ease infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Static gradient text (no animation) */
+  .gradient-text-static {
+    background: linear-gradient(90deg, #5B5EF4, #7C3AED);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Glass card */
+  .glass {
+    background: rgba(255, 255, 255, 0.62);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+  }
+
+  /* Glass dark (for canvas container) */
+  .glass-dark {
+    background: rgba(10, 10, 20, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  /* Floating background orbs */
+  .orb-1 { animation: float-1 11s ease-in-out infinite; }
+  .orb-2 { animation: float-2 15s ease-in-out infinite; }
+  .orb-3 { animation: float-3 13s ease-in-out infinite; }
+
+  /* Pulse dot */
+  .animate-pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+
+  /* Redaction text marks */
+  .redact-mark {
+    background-color: #1A1A1A;
+    color: transparent;
+    border-radius: 2px;
+    padding: 0 2px;
+    user-select: none;
+    display: inline-block;
+  }
+  .redact-mark-indigo {
+    background-color: #5B5EF4;
+    color: transparent;
+    border-radius: 2px;
+    padding: 0 2px;
+    user-select: none;
+    display: inline-block;
+  }
+
+  /* Gradient border trick via pseudo element */
+  .gradient-border {
+    position: relative;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, #5B5EF4, #EC4899, #7C3AED);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: shimmer 1.8s ease-in-out infinite;
   }
 }

@@ -16,7 +16,7 @@ export function DocxEditor({ enabledTypes }: DocxEditorProps) {
   const { fileBuffer } = useFileStore();
   const { extractText, redact, progress, stage, status, result, error } = useDocxProcessor();
   const { detect, status: piiStatus } = usePiiDetection();
-  const { approvedItems, customTerms, maskingStyle, regions } = useRedactionStore();
+  const { approvedItems, customTerms, maskingStyle, regions, setExtractedText } = useRedactionStore();
   const [extracted, setExtracted] = useState(false);
   const extractedTextRef = useRef('');
 
@@ -30,10 +30,11 @@ export function DocxEditor({ enabledTypes }: DocxEditorProps) {
   useEffect(() => {
     if (result?.text) {
       extractedTextRef.current = result.text;
+      setExtractedText(result.text);
       detect(result.text, customTerms, enabledTypes);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, detect]);
+  }, [result, detect, setExtractedText]);
 
   useEffect(() => {
     if (extractedTextRef.current) {
@@ -74,7 +75,7 @@ export function DocxEditor({ enabledTypes }: DocxEditorProps) {
 
       <PiiReviewPanel />
 
-      <Button onClick={handleRedact} disabled={status === 'running' || approvedItems.length === 0}>
+      <Button onClick={handleRedact} disabled={status === 'running' || (approvedItems.length === 0 && customTerms.length === 0)}>
         Apply Redactions ({approvedItems.length} items)
       </Button>
     </div>

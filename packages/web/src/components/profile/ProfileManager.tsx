@@ -13,13 +13,19 @@ import { cn } from '@/lib/utils';
 const PII_LABELS: Record<PiiType, string> = {
   [PiiType.NAME]: 'Names',
   [PiiType.EMAIL]: 'Emails',
-  [PiiType.PHONE]: 'Phones',
+  [PiiType.PHONE]: 'Phone Numbers',
   [PiiType.ADDRESS]: 'Addresses',
   [PiiType.CARD_NUMBER]: 'Card Numbers',
   [PiiType.DATE_OF_BIRTH]: 'Dates of Birth',
   [PiiType.SSN]: 'SSNs',
   [PiiType.PASSPORT]: 'Passports',
   [PiiType.IP_ADDRESS]: 'IP Addresses',
+  [PiiType.AADHAAR]: 'Aadhaar Numbers',
+  [PiiType.PAN]: 'PAN Cards',
+  [PiiType.VEHICLE_NUMBER]: 'Vehicle Numbers',
+  [PiiType.IFSC]: 'IFSC Codes',
+  [PiiType.UPI_ID]: 'UPI IDs',
+  [PiiType.GST]: 'GST Numbers',
   [PiiType.CUSTOM]: 'Custom Terms',
 };
 

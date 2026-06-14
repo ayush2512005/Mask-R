@@ -16,6 +16,13 @@ export enum PiiType {
   SSN = 'SSN',
   PASSPORT = 'PASSPORT',
   IP_ADDRESS = 'IP_ADDRESS',
+  // India-specific identifiers
+  AADHAAR = 'AADHAAR',
+  PAN = 'PAN',
+  VEHICLE_NUMBER = 'VEHICLE_NUMBER',
+  IFSC = 'IFSC',
+  UPI_ID = 'UPI_ID',
+  GST = 'GST',
   CUSTOM = 'CUSTOM',
 }
 

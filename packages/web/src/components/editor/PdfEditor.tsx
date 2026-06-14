@@ -17,7 +17,7 @@ export function PdfEditor({ onPiiDetected, enabledTypes }: PdfEditorProps) {
   const { fileBuffer } = useFileStore();
   const { extractText, redact, progress, stage, status, result, error } = usePdfProcessor();
   const { detect, status: piiStatus } = usePiiDetection();
-  const { approvedItems, customTerms, maskingStyle, regions } = useRedactionStore();
+  const { approvedItems, customTerms, maskingStyle, regions, setExtractedText } = useRedactionStore();
   const [textExtracted, setTextExtracted] = useState(false);
   const extractedTextRef = useRef('');
 
@@ -32,12 +32,13 @@ export function PdfEditor({ onPiiDetected, enabledTypes }: PdfEditorProps) {
   useEffect(() => {
     if (result?.text) {
       extractedTextRef.current = result.text;
+      setExtractedText(result.text);
       detect(result.text, customTerms, enabledTypes);
       onPiiDetected?.();
     }
     // intentionally omit customTerms/enabledTypes — handled by the effects below
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, detect, onPiiDetected]);
+  }, [result, detect, onPiiDetected, setExtractedText]);
 
   useEffect(() => {
     if (extractedTextRef.current) {
@@ -78,7 +79,7 @@ export function PdfEditor({ onPiiDetected, enabledTypes }: PdfEditorProps) {
 
       <PiiReviewPanel />
 
-      <Button onClick={handleRedact} disabled={status === 'running' || approvedItems.length === 0}>
+      <Button onClick={handleRedact} disabled={status === 'running' || (approvedItems.length === 0 && customTerms.length === 0)}>
         Apply Redactions ({approvedItems.length} items)
       </Button>
     </div>

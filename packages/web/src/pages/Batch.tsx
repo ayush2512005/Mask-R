@@ -14,14 +14,14 @@ import type { BatchItem } from '@/hooks/useBatchProcessor';
 const ACCEPTED_TYPES = Object.keys(SUPPORTED_MIME_TYPES).join(',');
 
 function fileTypeIcon(type: SupportedFileType) {
-  if (type === SupportedFileType.PDF) return <FileText className="h-4 w-4 text-red-500" />;
-  if (type === SupportedFileType.DOCX) return <FileText className="h-4 w-4 text-blue-500" />;
-  if (type === SupportedFileType.XLSX) return <Sheet className="h-4 w-4 text-green-600" />;
-  return <FileImage className="h-4 w-4 text-purple-500" />;
+  if (type === SupportedFileType.PDF) return <FileText className="h-4 w-4 text-destructive" />;
+  if (type === SupportedFileType.DOCX) return <FileText className="h-4 w-4 text-primary" />;
+  if (type === SupportedFileType.XLSX) return <Sheet className="h-4 w-4 text-success" />;
+  return <FileImage className="h-4 w-4 text-warning" />;
 }
 
 function statusIcon(item: BatchItem) {
-  if (item.status === 'done') return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+  if (item.status === 'done') return <CheckCircle2 className="h-4 w-4 text-success" />;
   if (item.status === 'error') return <AlertCircle className="h-4 w-4 text-destructive" />;
   if (item.status !== 'pending') return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
   return null;
@@ -80,7 +80,7 @@ export function Batch() {
 
   return (
     <PricingGate requiredTier={UserTier.PRO} feature="Batch Redaction">
-    <div className="container mx-auto px-4 py-10 max-w-3xl space-y-8">
+    <div className="mx-auto max-w-3xl px-6 py-10 space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Batch Redaction</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -91,7 +91,7 @@ export function Batch() {
       </div>
 
       {/* Profile selector */}
-      <div className="rounded-lg border bg-card p-4 space-y-2">
+      <div className="rounded-xl border border-border bg-card p-4 space-y-2">
         <p className="text-sm font-medium">Redaction profile</p>
         <ProfilePicker />
         {activeProfile && (
@@ -192,7 +192,7 @@ export function Batch() {
                 )}
 
                 {item.status === 'done' && (
-                  <p className="text-xs text-green-600">
+                  <p className="text-xs text-success">
                     Done · {item.piiCount ?? 0} PII item{item.piiCount !== 1 ? 's' : ''} redacted
                   </p>
                 )}
@@ -205,7 +205,7 @@ export function Batch() {
           </ul>
 
           {allDone && (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-lg border bg-muted/30 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-success/30 bg-success/5 p-4">
               <div>
                 <p className="text-sm font-medium">
                   {doneCount} file{doneCount !== 1 ? 's' : ''} redacted
@@ -214,6 +214,7 @@ export function Batch() {
                 <p className="text-xs text-muted-foreground">Files are bundled into a single ZIP.</p>
               </div>
               <Button
+                variant="success"
                 onClick={() => downloadAll(items)}
                 disabled={doneCount === 0}
                 className="gap-1.5 shrink-0"

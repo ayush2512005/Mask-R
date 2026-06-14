@@ -33,7 +33,46 @@ export interface UseAudioRedactorReturn {
   startTranscription: () => void;
   stopTranscription: () => void;
   getExportAudioStream: () => MediaStream | null;
+  scheduleExportGains: () => void;
   exportSrt: () => void;
+}
+
+// Schedules voice/bleep gain transitions on the Web Audio graph so that audio
+// is muted/bleeped at the correct video times. Call this right before v.play()
+// with videoCurrentTime set to v.currentTime at that moment.
+function scheduleGainsImpl(
+  ctx: AudioContext,
+  voiceGain: GainNode,
+  bleepGain: GainNode,
+  ranges: AudioRange[],
+  videoCurrentTime: number,
+): void {
+  const now = ctx.currentTime;
+
+  voiceGain.gain.cancelScheduledValues(now);
+  bleepGain.gain.cancelScheduledValues(now);
+
+  // Set initial gain state at the current video playback position
+  const initSilenced = ranges.some((r) => videoCurrentTime >= r.startTime && videoCurrentTime <= r.endTime);
+  const initBleep = ranges.some((r) => r.mode === 'bleep' && videoCurrentTime >= r.startTime && videoCurrentTime <= r.endTime);
+  voiceGain.gain.setValueAtTime(initSilenced ? 0 : 1, now);
+  bleepGain.gain.setValueAtTime(initBleep ? 0.25 : 0, now);
+
+  for (const range of ranges) {
+    const ctxStart = now + (range.startTime - videoCurrentTime);
+    const ctxEnd = now + (range.endTime - videoCurrentTime);
+
+    // Skip ranges entirely in the past
+    if (ctxEnd <= now) continue;
+
+    if (ctxStart > now) {
+      voiceGain.gain.setValueAtTime(0, ctxStart);
+      if (range.mode === 'bleep') bleepGain.gain.setValueAtTime(0.25, ctxStart);
+    }
+
+    voiceGain.gain.setValueAtTime(1, ctxEnd);
+    if (range.mode === 'bleep') bleepGain.gain.setValueAtTime(0, ctxEnd);
+  }
 }
 
 export function useAudioRedactor(
@@ -142,9 +181,54 @@ export function useAudioRedactor(
     exportDestRef.current = dest;
   }, [videoRef]);
 
+  // Real-time playback preview: reschedule gains whenever ranges change or the
+  // video plays/seeks. initAudioGraph() is called on the play event so the graph
+  // is built the first time the user plays after adding a range.
+  useEffect(() => {
+    const v = videoRef.current;
+
+    if (ranges.length === 0) {
+      // Reset gains to unmuted when all ranges are removed
+      const ctx = audioCtxRef.current;
+      const vg = voiceGainRef.current;
+      const bg = bleepGainRef.current;
+      if (ctx && vg && bg) {
+        const now = ctx.currentTime;
+        vg.gain.cancelScheduledValues(now);
+        vg.gain.setValueAtTime(1, now);
+        bg.gain.cancelScheduledValues(now);
+        bg.gain.setValueAtTime(0, now);
+      }
+      return;
+    }
+
+    if (!v) return;
+
+    function reschedule() {
+      initAudioGraph();
+      const ctx = audioCtxRef.current;
+      const vg = voiceGainRef.current;
+      const bg = bleepGainRef.current;
+      if (!ctx || !vg || !bg || !v) return;
+      void ctx.resume();
+      scheduleGainsImpl(ctx, vg, bg, ranges, v.currentTime);
+    }
+
+    // If video is currently playing, reschedule immediately (ranges changed mid-playback)
+    if (!v.paused) reschedule();
+
+    v.addEventListener('play', reschedule);
+    v.addEventListener('seeked', reschedule);
+    return () => {
+      v.removeEventListener('play', reschedule);
+      v.removeEventListener('seeked', reschedule);
+    };
+  }, [ranges, videoRef, initAudioGraph]);
+
   const addRange = useCallback((startTime: number, endTime: number, mode: RedactionMode = 'silence') => {
+    initAudioGraph(); // build graph early so real-time preview works
     setRanges((prev) => [...prev, { id: uuidv4(), startTime, endTime, mode }]);
-  }, []);
+  }, [initAudioGraph]);
 
   const removeRange = useCallback((id: string) => {
     setRanges((prev) => prev.filter((r) => r.id !== id));
@@ -230,39 +314,31 @@ export function useAudioRedactor(
     videoRef.current?.pause();
   }, [videoRef]);
 
-  // Returns a MediaStream with gain-scheduled redaction applied to the video's audio.
-  // Call immediately before starting MediaRecorder so timing aligns with video.currentTime = 0.
+  // Returns the MediaStream for export capture (graph setup only — no gain scheduling).
+  // Call scheduleExportGains() right before v.play() to align gain timing with the seek.
   const getExportAudioStream = useCallback((): MediaStream | null => {
     if (ranges.length === 0) return null;
 
     initAudioGraph();
 
-    const ctx = audioCtxRef.current;
-    const voiceGain = voiceGainRef.current;
-    const bleepGain = bleepGainRef.current;
     const dest = exportDestRef.current;
-    if (!ctx || !voiceGain || !bleepGain || !dest) return null;
+    if (!dest) return null;
 
-    void ctx.resume();
-
-    // Reschedule gain automations aligned to video time = 0 starting now
-    const now = ctx.currentTime;
-    voiceGain.gain.cancelScheduledValues(now);
-    voiceGain.gain.setValueAtTime(1, now);
-    bleepGain.gain.cancelScheduledValues(now);
-    bleepGain.gain.setValueAtTime(0, now);
-
-    for (const range of ranges) {
-      voiceGain.gain.setValueAtTime(0, now + range.startTime);
-      voiceGain.gain.setValueAtTime(1, now + range.endTime);
-      if (range.mode === 'bleep') {
-        bleepGain.gain.setValueAtTime(0.25, now + range.startTime);
-        bleepGain.gain.setValueAtTime(0, now + range.endTime);
-      }
-    }
-
+    void audioCtxRef.current?.resume();
     return dest.stream;
   }, [ranges, initAudioGraph]);
+
+  // Schedule gain automations for export. Call this AFTER seeking to 0 and right
+  // before v.play() so the AudioContext timeline aligns with the video timeline.
+  const scheduleExportGains = useCallback((): void => {
+    const ctx = audioCtxRef.current;
+    const vg = voiceGainRef.current;
+    const bg = bleepGainRef.current;
+    if (!ctx || !vg || !bg) return;
+    void ctx.resume();
+    // Video has been seeked to 0, so videoCurrentTime = 0
+    scheduleGainsImpl(ctx, vg, bg, ranges, 0);
+  }, [ranges]);
 
   const exportSrt = useCallback(() => {
     function toSrtTime(s: number): string {
@@ -325,6 +401,7 @@ export function useAudioRedactor(
     startTranscription,
     stopTranscription,
     getExportAudioStream,
+    scheduleExportGains,
     exportSrt,
   };
 }

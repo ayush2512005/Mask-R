@@ -8,8 +8,10 @@ interface RedactionState {
   regions: RedactionRegion[];
   maskingStyle: MaskingStyle;
   customTerms: string[];
+  extractedText: string;
   redactedBuffer: ArrayBuffer | null;
   setDetectedItems: (items: PiiItem[]) => void;
+  setExtractedText: (text: string) => void;
   approveItem: (itemId: string) => void;
   rejectItem: (itemId: string) => void;
   approveAll: () => void;
@@ -32,6 +34,7 @@ export const useRedactionStore = create<RedactionState>((set) => ({
   regions: [],
   maskingStyle: MaskingStyle.BLACK_BOX,
   customTerms: [],
+  extractedText: '',
   redactedBuffer: null,
 
   setDetectedItems: (items) =>
@@ -39,6 +42,8 @@ export const useRedactionStore = create<RedactionState>((set) => ({
       detectedItems: items,
       approvedItems: items.filter((i) => i.confidence >= HIGH_CONFIDENCE_THRESHOLD),
     }),
+
+  setExtractedText: (text) => set({ extractedText: text }),
 
   approveItem: (itemId) =>
     set((state) => ({
@@ -102,6 +107,7 @@ export const useRedactionStore = create<RedactionState>((set) => ({
       approvedItems: [],
       regions: [],
       customTerms: [],
+      extractedText: '',
       redactedBuffer: null,
     }),
 }));
